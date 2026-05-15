@@ -322,8 +322,10 @@ input[type=range]{accent-color:var(--accent2);width:100%;}
   <!-- SYSTEM -->
   <div class="tab-content" id="tab-system">
     <div class="page-header"><div><div class="page-title">System Settings</div></div></div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;">
       <div class="card"><div class="card-title">Trading Models</div><div class="system-list" id="modelList"></div><div style="display:flex;gap:8px;margin-top:12px;"><input type="text" id="newModelInput" style="flex:1;padding:8px 12px;border:var(--border);border-radius:7px;font-family:'DM Sans',sans-serif;" placeholder="Model name..."><button class="btn btn-accent btn-sm" onclick="addModel()">Add</button></div></div>
+      <div class="card"><div class="card-title">Instruments</div><div class="system-list" id="instrumentList"></div><div style="display:flex;gap:8px;margin-top:12px;"><input type="text" id="newInstrumentInput" style="flex:1;padding:8px 12px;border:var(--border);border-radius:7px;font-family:'DM Sans',sans-serif;" placeholder="e.g. NQ, BankNifty..."><button class="btn btn-accent btn-sm" onclick="addInstrument()">Add</button></div></div>
+      <div class="card"><div class="card-title">Protocols</div><div class="system-list" id="protocolList"></div><div style="display:flex;gap:8px;margin-top:12px;"><input type="text" id="newProtocolInput" style="flex:1;padding:8px 12px;border:var(--border);border-radius:7px;font-family:'DM Sans',sans-serif;" placeholder="e.g. LRLRC, HRLRC..."><button class="btn btn-accent btn-sm" onclick="addProtocol()">Add</button></div></div>
       <div class="card"><div class="card-title">Risk Management Checklist</div><div class="system-list" id="rmCheckList"></div><div style="display:flex;gap:8px;margin-top:12px;"><input type="text" id="newRMInput" style="flex:1;padding:8px 12px;border:var(--border);border-radius:7px;font-family:'DM Sans',sans-serif;" placeholder="Criteria..."><button class="btn btn-accent btn-sm" onclick="addRMCriteria()">Add</button></div></div>
       <div class="card"><div class="card-title">Trade Checklist</div><div class="system-list" id="tradeCheckList"></div><div style="display:flex;gap:8px;margin-top:12px;"><input type="text" id="newTCInput" style="flex:1;padding:8px 12px;border:var(--border);border-radius:7px;font-family:'DM Sans',sans-serif;" placeholder="Criteria..."><button class="btn btn-accent btn-sm" onclick="addTCCriteria()">Add</button></div></div>
       <div class="card"><div class="card-title">Data Management</div><div style="display:flex;flex-direction:column;gap:10px;">
@@ -381,9 +383,9 @@ input[type=range]{accent-color:var(--accent2);width:100%;}
       <div class="form-group"><label>Exit Time</label><input type="time" id="tExitTime"></div>
     </div>
     <div class="form-row col-3">
-      <div class="form-group"><label>Instrument</label><select id="tInstrument"><option>MNQ</option><option>MES</option><option>MYM</option><option>MGC</option><option>NQ</option><option>ES</option><option>YM</option><option>GC</option></select></div>
+      <div class="form-group"><label>Instrument</label><select id="tInstrument"></select></div>
       <div class="form-group"><label>Model</label><select id="tModel"></select></div>
-      <div class="form-group"><label>Protocol</label><select id="tProtocol"><option>LRLRC</option><option>HRLRC</option></select></div>
+      <div class="form-group"><label>Protocol</label><select id="tProtocol"></select></div>
     </div>
     <div class="form-row col-3">
       <div class="form-group"><label>Entry Price</label><input type="number" id="tEntry" step="0.01"></div>
@@ -521,6 +523,8 @@ let db = {
   accountName: 'My Account',
   trades: [], plans: [], reflections: [], studies: [], goals: [],
   models: ['ICT Silver Bullet','MSS + OB','Liquidity Sweep','IPDA','Fair Value Gap'],
+  instruments: ['MNQ','MES','MYM','MGC','NQ','ES','YM','GC'],
+  protocols: ['LRLRC','HRLRC'],
   rmCriteria: ['Position sized correctly','Stop loss set','Risk % within limit','News check done'],
   tcCriteria: ['Trend confirmed','Entry model valid','HTF aligned','Waited for confirmation'],
 };
@@ -825,6 +829,8 @@ function updateModelFilter() {
 function populateTradeForm() {
   const d=db();
   document.getElementById('tModel').innerHTML=(d.models||[]).map(m=>`<option>${m}</option>`).join('');
+  document.getElementById('tInstrument').innerHTML=(d.instruments||[]).map(m=>`<option>${m}</option>`).join('');
+  document.getElementById('tProtocol').innerHTML=(d.protocols||[]).map(m=>`<option>${m}</option>`).join('');
   document.getElementById('tLinkedPlan').innerHTML='<option value="">-- None --</option>'+[...(d.plans||[])].sort((a,b)=>new Date(b.date)-new Date(a.date)).map(p=>`<option value="${p.id}">${p.date} — ${p.bias}</option>`).join('');
   document.getElementById('rmChecklist').innerHTML=(d.rmCriteria||[]).map((c,i)=>`<label class="checklist-item"><input type="checkbox" id="rm_${i}" onchange="updateCheckCount('rmChecklist','rmChecklistCount')"> ${c}</label>`).join('');
   document.getElementById('tcChecklist').innerHTML=(d.tcCriteria||[]).map((c,i)=>`<label class="checklist-item"><input type="checkbox" id="tc_${i}" onchange="updateCheckCount('tcChecklist','tcChecklistCount')"> ${c}</label>`).join('');
@@ -962,9 +968,19 @@ function toggleGoalComplete(id){const g=(db().goals||[]).find(x=>x.id===id);if(!
 function deleteGoal(id){if(!confirm('Delete?'))return;db().goals=db().goals.filter(x=>x.id!==id);saveDB();renderGoals();}
 
 // ====== SYSTEM ======
-function renderSystem(){const d=db();document.getElementById('modelList').innerHTML=(d.models||[]).map((m,i)=>`<div class="system-list-item"><span>${m}</span><button class="btn btn-danger btn-sm" onclick="removeModel(${i})">✕</button></div>`).join('')||'<div style="color:var(--ink4);font-size:13px;padding:8px;">No models</div>';document.getElementById('rmCheckList').innerHTML=(d.rmCriteria||[]).map((c,i)=>`<div class="system-list-item"><span>${c}</span><button class="btn btn-danger btn-sm" onclick="removeRMCriteria(${i})">✕</button></div>`).join('')||'<div style="color:var(--ink4);font-size:13px;padding:8px;">No criteria</div>';document.getElementById('tradeCheckList').innerHTML=(d.tcCriteria||[]).map((c,i)=>`<div class="system-list-item"><span>${c}</span><button class="btn btn-danger btn-sm" onclick="removeTCCriteria(${i})">✕</button></div>`).join('')||'<div style="color:var(--ink4);font-size:13px;padding:8px;">No criteria</div>';}
+function renderSystem(){const d=db();
+  document.getElementById('modelList').innerHTML=(d.models||[]).map((m,i)=>`<div class="system-list-item"><span>${m}</span><button class="btn btn-danger btn-sm" onclick="removeModel(${i})">✕</button></div>`).join('')||'<div style="color:var(--ink4);font-size:13px;padding:8px;">No models</div>';
+  document.getElementById('instrumentList').innerHTML=(d.instruments||[]).map((m,i)=>`<div class="system-list-item"><span>${m}</span><button class="btn btn-danger btn-sm" onclick="removeInstrument(${i})">✕</button></div>`).join('')||'<div style="color:var(--ink4);font-size:13px;padding:8px;">No instruments</div>';
+  document.getElementById('protocolList').innerHTML=(d.protocols||[]).map((m,i)=>`<div class="system-list-item"><span>${m}</span><button class="btn btn-danger btn-sm" onclick="removeProtocol(${i})">✕</button></div>`).join('')||'<div style="color:var(--ink4);font-size:13px;padding:8px;">No protocols</div>';
+  document.getElementById('rmCheckList').innerHTML=(d.rmCriteria||[]).map((c,i)=>`<div class="system-list-item"><span>${c}</span><button class="btn btn-danger btn-sm" onclick="removeRMCriteria(${i})">✕</button></div>`).join('')||'<div style="color:var(--ink4);font-size:13px;padding:8px;">No criteria</div>';
+  document.getElementById('tradeCheckList').innerHTML=(d.tcCriteria||[]).map((c,i)=>`<div class="system-list-item"><span>${c}</span><button class="btn btn-danger btn-sm" onclick="removeTCCriteria(${i})">✕</button></div>`).join('')||'<div style="color:var(--ink4);font-size:13px;padding:8px;">No criteria</div>';
+}
 function addModel(){const val=document.getElementById('newModelInput').value.trim();if(!val)return;if(!db().models)db().models=[];db().models.push(val);document.getElementById('newModelInput').value='';saveDB();renderSystem();updateModelFilter();}
 function removeModel(i){db().models.splice(i,1);saveDB();renderSystem();}
+function addInstrument(){const val=document.getElementById('newInstrumentInput').value.trim();if(!val)return;if(!db().instruments)db().instruments=[];db().instruments.push(val);document.getElementById('newInstrumentInput').value='';saveDB();renderSystem();}
+function removeInstrument(i){db().instruments.splice(i,1);saveDB();renderSystem();}
+function addProtocol(){const val=document.getElementById('newProtocolInput').value.trim();if(!val)return;if(!db().protocols)db().protocols=[];db().protocols.push(val);document.getElementById('newProtocolInput').value='';saveDB();renderSystem();}
+function removeProtocol(i){db().protocols.splice(i,1);saveDB();renderSystem();}
 function addRMCriteria(){const val=document.getElementById('newRMInput').value.trim();if(!val)return;if(!db().rmCriteria)db().rmCriteria=[];db().rmCriteria.push(val);document.getElementById('newRMInput').value='';saveDB();renderSystem();}
 function removeRMCriteria(i){db().rmCriteria.splice(i,1);saveDB();renderSystem();}
 function addTCCriteria(){const val=document.getElementById('newTCInput').value.trim();if(!val)return;if(!db().tcCriteria)db().tcCriteria=[];db().tcCriteria.push(val);document.getElementById('newTCInput').value='';saveDB();renderSystem();}
