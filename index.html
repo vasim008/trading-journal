@@ -1463,16 +1463,33 @@ renderAll();
 // Firebase auto-inits if config was saved
 const _savedCfg = localStorage.getItem('tradedesk_fb_cfg');
 if (_savedCfg) {
-  // Load Firebase SDK dynamically then init
-  const s1 = document.createElement('script');
-  s1.src = 'https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js';
-  s1.onload = () => {
-    const s2 = document.createElement('script');
-    s2.src = 'https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js';
-    s2.onload = () => initFirebase(JSON.parse(_savedCfg));
-    document.head.appendChild(s2);
-  };
-  document.head.appendChild(s1);
+  try {
+    const _cfg = JSON.parse(_savedCfg);
+    // ✅ Re-populate all input fields so they're never blank after refresh
+    if (_cfg.apiKey)            document.getElementById('fb-apikey').value            = _cfg.apiKey;
+    if (_cfg.authDomain)        document.getElementById('fb-authdomain').value        = _cfg.authDomain;
+    if (_cfg.databaseURL)       document.getElementById('fb-dburl').value             = _cfg.databaseURL;
+    if (_cfg.projectId)         document.getElementById('fb-projectid').value         = _cfg.projectId;
+    if (_cfg.storageBucket)     document.getElementById('fb-bucket').value            = _cfg.storageBucket;
+    if (_cfg.messagingSenderId) document.getElementById('fb-senderid').value          = _cfg.messagingSenderId;
+    if (_cfg.appId)             document.getElementById('fb-appid').value             = _cfg.appId;
+    // ✅ Show "Connecting..." immediately while SDK loads
+    const _fbStatus = document.getElementById('fb-status');
+    _fbStatus.textContent = '🔄 Connecting to Firebase...';
+    _fbStatus.style.color = 'var(--gold)';
+    // Load Firebase SDK dynamically then init
+    const s1 = document.createElement('script');
+    s1.src = 'https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js';
+    s1.onload = () => {
+      const s2 = document.createElement('script');
+      s2.src = 'https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js';
+      s2.onload = () => initFirebase(_cfg);
+      s2.onerror = () => { _fbStatus.textContent = '❌ Firebase SDK failed to load'; _fbStatus.style.color = 'red'; };
+      document.head.appendChild(s2);
+    };
+    s1.onerror = () => { _fbStatus.textContent = '❌ Firebase SDK failed to load'; _fbStatus.style.color = 'red'; };
+    document.head.appendChild(s1);
+  } catch(e) { console.warn('Firebase config error:', e); }
 }
 
 function connectFirebase() {
@@ -1485,16 +1502,28 @@ function connectFirebase() {
     messagingSenderId: document.getElementById('fb-senderid').value.trim(),
     appId:             document.getElementById('fb-appid').value.trim()
   };
-  if (!cfg.databaseURL) { alert('Database URL is required'); return; }
+  if (!cfg.apiKey)       { alert('API Key is required'); return; }
+  if (!cfg.databaseURL)  { alert('Database URL is required'); return; }
+  // ✅ Save config so it persists across all refreshes
   localStorage.setItem('tradedesk_fb_cfg', JSON.stringify(cfg));
+  const _fbStatus = document.getElementById('fb-status');
+  _fbStatus.textContent = '🔄 Connecting...';
+  _fbStatus.style.color = 'var(--gold)';
+  // If Firebase SDK already loaded, init directly
+  if (typeof firebase !== 'undefined') {
+    initFirebase(cfg);
+    return;
+  }
   const s1 = document.createElement('script');
   s1.src = 'https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js';
   s1.onload = () => {
     const s2 = document.createElement('script');
     s2.src = 'https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js';
     s2.onload = () => initFirebase(cfg);
+    s2.onerror = () => { _fbStatus.textContent = '❌ SDK load failed — check internet'; _fbStatus.style.color = 'red'; };
     document.head.appendChild(s2);
   };
+  s1.onerror = () => { _fbStatus.textContent = '❌ SDK load failed — check internet'; _fbStatus.style.color = 'red'; };
   document.head.appendChild(s1);
 }
 
